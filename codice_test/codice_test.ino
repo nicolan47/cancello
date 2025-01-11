@@ -12,10 +12,13 @@
 #define radio 12
 #define amperometroSx A0
 #define amperometroDx A1
+
 bool aperturaInCorso = false;
-bool chiusuraInCorso = false;
+unsigned long tempoApertura = 0;  // variabile per il controllo del tempo
+unsigned long durataApertura = 5000;  // durata di 5 secondi (5000 millisecondi)
 
 void setup() {
+  Serial.begin(9600);  // Inizializza la comunicazione seriale
   pinMode(fotocellulaInt, INPUT_PULLUP);
   pinMode(fotocellulaEst, INPUT_PULLUP);
 
@@ -35,10 +38,44 @@ void setup() {
 }
 
 void loop() {
-  //step 1
-  if(digitalRead(pulsanteApertura) == LOW && digitalRead(fotocellulaInt) == HIGH){ //pullup ragioniamo al contrario
-    digitalWrite(apriDx, HIGH); //apriamo l'anta destra perche sono sovrapposte
-    delay(400);
-    digitalWrite(apriSx, HIGH);
+  // Controlliamo se deve partire l'apertura del cancello
+  if (digitalRead(pulsanteApertura) == LOW && digitalRead(fotocellulaInt) == HIGH && digitalRead(fotocellulaEst)==HIGH) {
+    Serial.println("Apertura Cancello");  // Messaggio di debug per apertura
+    apriCancello();
   }
+
+  // Controlliamo se è il momento di chiudere il cancello
+  if (aperturaInCorso) {
+    if (millis() - tempoApertura >= durataApertura) {  // Se sono passati 5000 ms (5 secondi) dall'apertura
+      Serial.println("Tempo scaduto, chiusura cancello");  // Messaggio di debug per il tempo scaduto
+      chiudiCancello();
+    } else {
+      Serial.print("Tempo trascorso: ");
+      Serial.println(millis() - tempoApertura);  // Debug per mostrare quanto tempo è passato
+    }
+  }
+}
+
+// Funzione per aprire il cancello
+void apriCancello() {
+  if (!aperturaInCorso) {
+    aperturaInCorso = true;  // Impostiamo aperturaInCorso su true per evitare che venga ripetuto
+    digitalWrite(apriDx, HIGH);  // Apriamo l'anta destra
+    delay(400);  // Delay per evitare che le due ante si sovrappongano troppo rapidamente
+    digitalWrite(apriSx, HIGH);  // Apriamo l'anta sinistra
+    tempoApertura = millis();  // Salviamo il tempo di inizio apertura
+    Serial.println("Cancello aperto");  // Messaggio di debug per apertura
+  }
+}
+
+// Funzione per chiudere il cancello
+void chiudiCancello() {
+  Serial.println("Chiusura cancello");  // Messaggio di debug per chiusura
+  digitalWrite(apriSx, LOW);  // Chiudiamo l'anta sinistra
+  digitalWrite(apriDx, LOW);  // Chiudiamo l'anta destra
+  digitalWrite(chiudiSx, HIGH); // Azione di chiusura per l'anta sinistra
+  delay(400);  // Tempo di ritardo tra i movimenti
+  digitalWrite(chiudiDx, HIGH); // Azione di chiusura per l'anta destra
+
+  aperturaInCorso = false;    // Resettiamo la variabile per evitare che il ciclo ripeta
 }
